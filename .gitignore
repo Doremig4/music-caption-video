@@ -1,0 +1,5 @@
+node_modules/
+output/
+outputs/
+work/
+.DS_Store
