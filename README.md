@@ -1,6 +1,6 @@
-# 음악 자막 영상
+# 자막 영상 생성기
 
-`public/music.mp3`, `public/lyrics.srt`, `public/cover.jpg`를 교체한 뒤 실행합니다.
+`public/music.mp3`, `public/lyrics.srt`, `public/cover.jpg`를 교체한 뒤 실행.
 
 ```bash
 npm run web
