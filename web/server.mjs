@@ -1,4 +1,4 @@
-import {createReadStream, createWriteStream, existsSync, statSync} from 'node:fs';
+import {createReadStream, createWriteStream, existsSync, readFileSync, renameSync, statSync} from 'node:fs';
 import {mkdir, rename} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {join} from 'node:path';
@@ -9,9 +9,11 @@ const root = new URL('..', import.meta.url).pathname;
 const publicDir = join(root, 'public');
 const outputsDir = join(root, 'outputs');
 const webDir = join(root, 'web');
-const files = {music: 'music.mp3', cover: 'cover.jpg', captions: 'lyrics.srt'};
-const limits = {music: 500 * 1024 * 1024, cover: 25 * 1024 * 1024, captions: 2 * 1024 * 1024};
+const files = {music: 'music.mp3', cover: 'cover.jpg', captions: 'lyrics.srt', lyrics: 'lyrics.txt'};
+const limits = {music: 500 * 1024 * 1024, cover: 25 * 1024 * 1024, captions: 2 * 1024 * 1024, lyrics: 2 * 1024 * 1024};
 let renderState = {status: 'idle', phase: '', percent: 0, error: ''};
+// ponytail: local single-user UI; use per-job state if concurrent users are added.
+let syncState = {status: 'idle', phase: '', percent: 0, error: ''};
 
 const send = (response, status, body, type = 'text/plain; charset=utf-8') => {
   response.writeHead(status, {'content-type': type, 'cache-control': 'no-store'});
@@ -81,6 +83,44 @@ const startRender = () => {
   });
 };
 
+const startSync = () => {
+  syncState = {status: 'running', phase: 'Whisper 시작 중', percent: 1, error: ''};
+  const python = join(root, '.whisper-env', 'bin', 'python');
+  const generated = join(publicDir, 'lyrics.generated.srt');
+  const child = spawn(python, [join(root, 'scripts', 'generate_srt.py'), join(publicDir, files.music), join(publicDir, files.lyrics), generated], {cwd: root});
+  let log = '';
+  let buffer = '';
+  const readOutput = (chunk) => {
+    log = (log + chunk).slice(-4000);
+    buffer += chunk.toString();
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (line.startsWith('STATUS ')) syncState.phase = line.slice(7);
+      if (line.startsWith('PROGRESS ')) syncState.percent = Number(line.slice(9));
+    }
+  };
+  child.stdout.on('data', readOutput);
+  child.stderr.on('data', readOutput);
+  child.on('error', (error) => {
+    syncState = {status: 'error', phase: '', percent: syncState.percent, error: error.message};
+  });
+  child.on('close', (code) => {
+    if (code !== 0) {
+      syncState = {status: 'error', phase: '', percent: syncState.percent, error: log.trim() || 'SRT 생성에 실패했습니다.'};
+      return;
+    }
+    try {
+      const {captions} = parseSrt({input: readFileSync(generated, 'utf8')});
+      if (!captions.length) throw new Error('생성된 자막이 비어 있습니다.');
+      renameSync(generated, join(publicDir, files.captions));
+      syncState = {status: 'done', phase: `자막 ${captions.length}개 생성 완료`, percent: 100, error: ''};
+    } catch (error) {
+      syncState = {status: 'error', phase: '', percent: 100, error: error instanceof Error ? error.message : String(error)};
+    }
+  });
+};
+
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? '/', 'http://localhost');
@@ -93,12 +133,18 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/captions') return stream(request, response, join(publicDir, files.captions), 'text/plain; charset=utf-8');
     if (request.method === 'GET' && url.pathname === '/api/meta') return stream(request, response, join(publicDir, 'meta.json'), 'application/json; charset=utf-8');
     if (request.method === 'GET' && url.pathname === '/api/render-status') return send(response, 200, JSON.stringify(renderState), 'application/json; charset=utf-8');
+    if (request.method === 'GET' && url.pathname === '/api/sync-status') return send(response, 200, JSON.stringify(syncState), 'application/json; charset=utf-8');
     if (request.method === 'GET' && url.pathname === '/video') return stream(request, response, join(outputsDir, 'music-video.mp4'), 'video/mp4');
 
     const upload = url.pathname.match(/^\/api\/(music|cover)$/)?.[1];
     if (request.method === 'PUT' && upload) {
       await saveBody(request, join(publicDir, files[upload]), limits[upload]);
       return send(response, 200, '저장했습니다.');
+    }
+
+    if (request.method === 'PUT' && url.pathname === '/api/lyrics') {
+      await saveBody(request, join(publicDir, files.lyrics), limits.lyrics);
+      return send(response, 200, 'TXT를 저장했습니다.');
     }
 
     if (request.method === 'PUT' && url.pathname === '/api/captions') {
@@ -138,6 +184,15 @@ const server = createServer(async (request, response) => {
       if (renderState.status === 'running') return send(response, 409, '이미 렌더링 중입니다.');
       startRender();
       return send(response, 202, '렌더링을 시작했습니다.');
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/generate-srt') {
+      if (syncState.status === 'running') return send(response, 409, '이미 자막 싱크를 분석 중입니다.');
+      if (!existsSync(join(publicDir, files.music))) throw new Error('먼저 음악 파일을 업로드하세요.');
+      if (!existsSync(join(publicDir, files.lyrics))) throw new Error('먼저 가사 TXT 파일을 업로드하세요.');
+      if (!existsSync(join(root, '.whisper-env', 'bin', 'python'))) throw new Error('터미널에서 npm run setup-whisper를 먼저 실행하세요.');
+      startSync();
+      return send(response, 202, '자막 싱크 분석을 시작했습니다.');
     }
 
     return send(response, 404, '찾을 수 없습니다.');

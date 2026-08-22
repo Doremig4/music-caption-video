@@ -1,4 +1,5 @@
 node_modules/
+.whisper-env/
 output/
 outputs/
 work/

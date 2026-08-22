@@ -13,6 +13,9 @@ const renderButton = document.querySelector('#render');
 const renderProgress = document.querySelector('#renderProgress');
 const renderLabel = document.querySelector('#renderLabel');
 const outputName = document.querySelector('#outputName');
+const syncButton = document.querySelector('#generateSrt');
+const syncProgress = document.querySelector('#syncProgress');
+const syncLabel = document.querySelector('#syncLabel');
 let outputHandle = null;
 
 const setStatus = (message) => (status.textContent = message);
@@ -31,13 +34,11 @@ const animateTimeline = () => {
   if (!audio.paused) timelineFrame = requestAnimationFrame(animateTimeline);
 };
 
-const addRow = ({start = 0, end = 2, text = ''} = {}) => {
+const addRow = ({start = 0, text = ''} = {}) => {
   const row = template.content.firstElementChild.cloneNode(true);
   row.querySelector('.start').value = start;
-  row.querySelector('.end').value = end;
   row.querySelector('textarea').value = text;
   row.querySelector('.mark-start').onclick = () => (row.querySelector('.start').value = time());
-  row.querySelector('.mark-end').onclick = () => (row.querySelector('.end').value = time());
   row.querySelector('.remove').onclick = () => { row.remove(); refreshNumbers(); };
   captions.append(row);
   refreshNumbers();
@@ -80,13 +81,14 @@ const stamp = (value) => {
   return `${hours}:${minutes}:${seconds},${String(ms % 1000).padStart(3, '0')}`;
 };
 
-const serialize = () => [...captions.children].map((row, index) => {
-  const start = +row.querySelector('.start').value;
-  const end = +row.querySelector('.end').value;
-  const text = row.querySelector('textarea').value.trim();
-  if (!text || end <= start) throw new Error(`${index + 1}번 자막의 문구와 시간을 확인하세요.`);
-  return `${index + 1}\n${stamp(start)} --> ${stamp(end)}\n${text}`;
-}).join('\n\n') + '\n';
+const serialize = () => {
+  const cues = [...captions.children].map((row) => ({start: +row.querySelector('.start').value, text: row.querySelector('textarea').value.trim()}));
+  return cues.map((cue, index) => {
+    const end = cues[index + 1]?.start ?? (Number.isFinite(audio.duration) ? audio.duration : cue.start + 2);
+    if (!cue.text || !Number.isFinite(cue.start) || end <= cue.start) throw new Error(`${index + 1}번 자막의 문구와 시작 시간을 확인하세요.`);
+    return `${index + 1}\n${stamp(cue.start)} --> ${stamp(end)}\n${cue.text}`;
+  }).join('\n\n') + '\n';
+};
 
 const save = async () => {
   const [captionResponse, metaResponse] = await Promise.all([
@@ -98,10 +100,10 @@ const save = async () => {
   setStatus('SRT를 저장했습니다.');
 };
 
-document.querySelector('#add').onclick = () => addRow({start: time(), end: time() + 2});
+document.querySelector('#add').onclick = () => addRow({start: time()});
 document.querySelectorAll('.offset').forEach((button) => button.onclick = () => {
   const offset = Number(button.dataset.offset);
-  const inputs = [...captions.querySelectorAll('.start, .end')];
+  const inputs = [...captions.querySelectorAll('.start')];
   if (inputs.some((input) => Number(input.value) + offset < 0)) return setStatus('자막은 0초보다 앞으로 이동할 수 없습니다.');
   inputs.forEach((input) => (input.value = (Number(input.value) + offset).toFixed(3)));
   setStatus(`전체 자막을 ${offset > 0 ? '+' : ''}${offset.toFixed(1)}초 이동했습니다.`);
@@ -124,6 +126,13 @@ document.querySelector('#srtFile').onchange = async (event) => {
   captions.replaceChildren();
   imported.forEach(addRow);
   setStatus(`${file.name}에서 자막 ${imported.length}개를 불러왔습니다.`);
+};
+document.querySelector('#lyricsFile').onchange = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  setStatus(`${file.name} 업로드 중…`);
+  const response = await fetch('/api/lyrics', {method: 'PUT', body: file});
+  setStatus(response.ok ? `${file.name}을 저장했습니다.` : await response.text());
 };
 document.querySelector('#save').onclick = () => save().catch((error) => setStatus(error.message));
 document.querySelector('#download').onclick = () => {
@@ -149,6 +158,38 @@ for (const kind of ['music', 'cover']) {
     setStatus(`${file.name}을 저장했습니다.`);
   };
 }
+
+const waitForSync = async () => {
+  while (true) {
+    const response = await fetch('/api/sync-status');
+    const state = await response.json();
+    syncProgress.value = state.percent;
+    syncLabel.textContent = `${state.phase || '분석 중'} · ${state.percent}%`;
+    if (state.status === 'done') return;
+    if (state.status === 'error') throw new Error(state.error || '자동 싱크에 실패했습니다.');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+};
+
+syncButton.onclick = async () => {
+  try {
+    syncButton.disabled = true;
+    setStatus('음성과 TXT 가사를 분석 중입니다…');
+    const response = await fetch('/api/generate-srt', {method: 'POST'});
+    if (!response.ok) throw new Error(await response.text());
+    await waitForSync();
+    const srtResponse = await fetch(`/api/captions?t=${Date.now()}`);
+    if (!srtResponse.ok) throw new Error(await srtResponse.text());
+    const generated = parseSrt(await srtResponse.text());
+    captions.replaceChildren();
+    generated.forEach(addRow);
+    setStatus(`자동 생성한 자막 ${generated.length}개를 편집기에 불러왔습니다.`);
+  } catch (error) {
+    setStatus(error.message);
+  } finally {
+    syncButton.disabled = false;
+  }
+};
 
 const chooseOutput = async () => {
   if (!window.showSaveFilePicker) {

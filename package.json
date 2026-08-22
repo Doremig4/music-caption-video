@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "web": "node web/server.mjs",
+    "setup-whisper": "python3 -m venv .whisper-env && .whisper-env/bin/pip install faster-whisper==1.2.1",
     "preview": "remotion studio --no-open",
     "render": "remotion render MusicCaption outputs/music-video.mp4 --codec=h264 --audio-codec=aac",
     "check": "tsc --noEmit"

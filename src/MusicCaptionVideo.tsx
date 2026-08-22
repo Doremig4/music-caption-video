@@ -3,9 +3,9 @@ import type {Caption} from '@remotion/captions';
 import {Audio} from '@remotion/media';
 import {
   AbsoluteFill,
-  Easing,
   Img,
   interpolate,
+  spring,
   staticFile,
   useCurrentFrame,
   useVideoConfig,
@@ -25,11 +25,6 @@ export const MusicCaptionVideo = ({captions, title, artist}: MusicCaptionProps) 
   const active = captions[activeIndex];
   const activeStart = (active?.startMs ?? 0) / 1000 * fps;
   const previousIndex = activeIndex === 0 ? -1 : activeIndex - 1;
-  const scrollIndex = interpolate(frame, [activeStart, activeStart + 12], [previousIndex, activeIndex], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-  });
 
   return (
     <AbsoluteFill style={{backgroundColor: '#090909', overflow: 'hidden'}}>
@@ -58,8 +53,18 @@ export const MusicCaptionVideo = ({captions, title, artist}: MusicCaptionProps) 
       </AbsoluteFill>
       <AbsoluteFill style={{left: '52%', width: '43%', backgroundColor: 'rgba(12, 12, 14, 0.55)', overflow: 'hidden'}}>
         <div style={{position: 'absolute', left: 0, right: 0, top: 540, height: 108, backgroundColor: 'rgba(5, 5, 8, 0.68)'}} />
-        <div style={{position: 'absolute', left: 0, right: 0, top: 540, translate: `0 ${-scrollIndex * 108}px`}}>
-          {captions.map((caption, index) => (
+        {captions.map((caption, index) => {
+          const rowDelay = Math.min(10, Math.max(0, index - activeIndex + 2) * 2);
+          const rowProgress = spring({
+            fps,
+            frame: Math.max(0, frame - activeStart - rowDelay),
+            durationInFrames: 32,
+            config: {damping: 26, stiffness: 180, mass: 0.75},
+          });
+          const rowY = interpolate(rowProgress, [0, 1], [(index - previousIndex) * 108, (index - activeIndex) * 108]);
+          const distance = Math.abs(rowY / 108);
+          const focus = Math.max(0, 1 - distance);
+          return (
             <div
               key={`${caption.startMs}-${index}`}
               style={{
@@ -67,23 +72,27 @@ export const MusicCaptionVideo = ({captions, title, artist}: MusicCaptionProps) 
                 backgroundColor: 'transparent',
                 color: 'white',
                 display: 'flex',
-                filter: `blur(${Math.min(12, Math.max(0, Math.abs(index - scrollIndex) - 2) * 3)}px)`,
                 fontFamily: 'Noto Sans KR Variable, sans-serif',
                 fontSize: 44,
-                fontWeight: index === currentIndex ? 650 : 420,
+                fontWeight: Math.round(interpolate(focus, [0, 1], [420, 650])),
                 height: 108,
                 justifyContent: 'center',
+                left: 0,
                 letterSpacing: '-0.025em',
-                opacity: index === currentIndex ? 1 : 0.72,
+                opacity: interpolate(focus, [0, 1], [0.72, 1]),
                 padding: '0 52px',
+                position: 'absolute',
+                right: 0,
                 textAlign: 'center',
+                top: 540,
+                translate: `0 ${rowY}px`,
                 whiteSpace: 'pre-line',
               }}
             >
               {caption.text.trim()}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </AbsoluteFill>
     </AbsoluteFill>
   );
