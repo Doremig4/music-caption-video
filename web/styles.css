@@ -17,8 +17,8 @@ audio {display: none}
 .volume {grid-column: 2/-1; display: grid; grid-template-columns: auto minmax(120px, 240px) 48px; align-items: center; justify-content: end}
 .volume input {padding: 0}
 label {display: grid; gap: 6px; color: #b8c2d5; font-size: 13px}
-input, textarea, button, a {font: inherit}
-input, textarea {width: 100%; border: 1px solid #34415f; border-radius: 8px; background: #0c1221; color: white; padding: 10px}
+input, textarea, select, button, a {font: inherit}
+input, textarea, select {width: 100%; border: 1px solid #34415f; border-radius: 8px; background: #0c1221; color: white; padding: 10px}
 button, a {border: 1px solid #405071; border-radius: 8px; background: #222c43; color: white; padding: 9px 13px; cursor: pointer; text-decoration: none}
 button:hover, a:hover {background: #2d3955}
 .toolbar, .finish {display: flex; gap: 10px; align-items: center; flex-wrap: wrap}

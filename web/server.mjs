@@ -11,6 +11,15 @@ const outputsDir = join(root, 'outputs');
 const webDir = join(root, 'web');
 const files = {music: 'music.mp3', cover: 'cover.jpg', captions: 'lyrics.srt', lyrics: 'lyrics.txt'};
 const limits = {music: 500 * 1024 * 1024, cover: 25 * 1024 * 1024, captions: 2 * 1024 * 1024, lyrics: 2 * 1024 * 1024};
+const renderModes = {
+  full: {script: 'render', filename: 'music-video.mp4'},
+  proxy: {script: 'render:proxy', filename: 'music-video-proxy.mp4'},
+};
+const getRenderMode = (url) => {
+  const mode = url.searchParams.get('mode') ?? 'full';
+  if (!Object.hasOwn(renderModes, mode)) throw new Error('지원하지 않는 출력 모드입니다.');
+  return mode;
+};
 let renderState = {status: 'idle', phase: '', percent: 0, error: ''};
 // ponytail: local single-user UI; use per-job state if concurrent users are added.
 let syncState = {status: 'idle', phase: '', percent: 0, error: ''};
@@ -53,9 +62,9 @@ const saveBody = async (request, target, limit) => {
   await rename(temp, target);
 };
 
-const startRender = () => {
-  renderState = {status: 'running', phase: '렌더링 준비 중', percent: 0, error: ''};
-  const child = spawn('npm', ['run', 'render'], {cwd: root});
+const startRender = (mode) => {
+  renderState = {status: 'running', phase: '렌더링 준비 중', percent: 0, error: '', mode};
+  const child = spawn('npm', ['run', renderModes[mode].script], {cwd: root});
   let log = '';
   const readProgress = (chunk) => {
     log = (log + chunk).slice(-4000);
@@ -78,7 +87,7 @@ const startRender = () => {
       renderState = {status: 'error', phase: '', percent: renderState.percent, error: log || `렌더러가 ${code} 코드로 종료됐습니다.`};
       return;
     }
-    renderState = {status: 'done', phase: '완료', percent: 100, error: ''};
+    renderState = {status: 'done', phase: '완료', percent: 100, error: '', mode};
     spawn('osascript', ['-e', 'display notification "영상 렌더링이 완료됐습니다." with title "음악 자막 영상"']);
   });
 };
@@ -134,7 +143,7 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/meta') return stream(request, response, join(publicDir, 'meta.json'), 'application/json; charset=utf-8');
     if (request.method === 'GET' && url.pathname === '/api/render-status') return send(response, 200, JSON.stringify(renderState), 'application/json; charset=utf-8');
     if (request.method === 'GET' && url.pathname === '/api/sync-status') return send(response, 200, JSON.stringify(syncState), 'application/json; charset=utf-8');
-    if (request.method === 'GET' && url.pathname === '/video') return stream(request, response, join(outputsDir, 'music-video.mp4'), 'video/mp4');
+    if (request.method === 'GET' && url.pathname === '/video') return stream(request, response, join(outputsDir, renderModes[getRenderMode(url)].filename), 'video/mp4');
 
     const upload = url.pathname.match(/^\/api\/(music|cover)$/)?.[1];
     if (request.method === 'PUT' && upload) {
@@ -182,7 +191,7 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && url.pathname === '/api/render') {
       if (renderState.status === 'running') return send(response, 409, '이미 렌더링 중입니다.');
-      startRender();
+      startRender(getRenderMode(url));
       return send(response, 202, '렌더링을 시작했습니다.');
     }
 

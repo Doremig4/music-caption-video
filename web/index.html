@@ -41,6 +41,12 @@
         <div id="captions"></div>
       </section>
       <section class="finish">
+        <label>출력 모드
+          <select id="renderMode">
+            <option value="full">최종 영상 · 1920×1080</option>
+            <option value="proxy">프록시 · 960×540 (빠른 확인용)</option>
+          </select>
+        </label>
         <button id="chooseOutput" type="button">출력 위치 선택</button>
         <span id="outputName">music-video.mp4</span>
         <button id="render" class="primary" type="button">영상 렌더하기</button>

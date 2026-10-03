@@ -5,11 +5,11 @@ import {
   AbsoluteFill,
   Img,
   interpolate,
-  spring,
   staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
+import {getCaptionScroll} from './caption-motion';
 
 export type MusicCaptionProps = {captions: Caption[]; title: string; artist: string};
 
@@ -17,14 +17,7 @@ export const MusicCaptionVideo = ({captions, title, artist}: MusicCaptionProps) 
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
   const timeMs = (frame / fps) * 1000;
-  const currentIndex = captions.reduce(
-    (found, caption, index) => caption.startMs <= timeMs && caption.startMs > (captions[found]?.startMs ?? -1) ? index : found,
-    -1,
-  );
-  const activeIndex = Math.max(0, currentIndex);
-  const active = captions[activeIndex];
-  const activeStart = (active?.startMs ?? 0) / 1000 * fps;
-  const previousIndex = activeIndex === 0 ? -1 : activeIndex - 1;
+  const scrollPosition = getCaptionScroll(captions, timeMs);
 
   return (
     <AbsoluteFill style={{backgroundColor: '#090909', overflow: 'hidden'}}>
@@ -54,14 +47,7 @@ export const MusicCaptionVideo = ({captions, title, artist}: MusicCaptionProps) 
       <AbsoluteFill style={{left: '52%', width: '43%', backgroundColor: 'rgba(12, 12, 14, 0.55)', overflow: 'hidden'}}>
         <div style={{position: 'absolute', left: 0, right: 0, top: 540, height: 108, backgroundColor: 'rgba(5, 5, 8, 0.68)'}} />
         {captions.map((caption, index) => {
-          const rowDelay = Math.min(10, Math.max(0, index - activeIndex + 2) * 2);
-          const rowProgress = spring({
-            fps,
-            frame: Math.max(0, frame - activeStart - rowDelay),
-            durationInFrames: 32,
-            config: {damping: 26, stiffness: 180, mass: 0.75},
-          });
-          const rowY = interpolate(rowProgress, [0, 1], [(index - previousIndex) * 108, (index - activeIndex) * 108]);
+          const rowY = (index - scrollPosition) * 108;
           const distance = Math.abs(rowY / 108);
           const focus = Math.max(0, 1 - distance);
           return (
@@ -74,7 +60,11 @@ export const MusicCaptionVideo = ({captions, title, artist}: MusicCaptionProps) 
                 display: 'flex',
                 fontFamily: 'Noto Sans KR Variable, sans-serif',
                 fontSize: 44,
-                fontWeight: Math.round(interpolate(focus, [0, 1], [420, 650])),
+                filter: `blur(${interpolate(distance, [2, 3, 4, 5], [0, 3, 6, 9], {
+                  extrapolateLeft: 'clamp',
+                  extrapolateRight: 'clamp',
+                })}px)`,
+                fontWeight: interpolate(focus, [0, 1], [420, 650]),
                 height: 108,
                 justifyContent: 'center',
                 left: 0,

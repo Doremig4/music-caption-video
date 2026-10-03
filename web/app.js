@@ -10,6 +10,7 @@ const play = document.querySelector('#play');
 const volume = document.querySelector('#volume');
 const volumeDisplay = document.querySelector('#volumeDisplay');
 const renderButton = document.querySelector('#render');
+const renderMode = document.querySelector('#renderMode');
 const renderProgress = document.querySelector('#renderProgress');
 const renderLabel = document.querySelector('#renderLabel');
 const outputName = document.querySelector('#outputName');
@@ -17,6 +18,11 @@ const syncButton = document.querySelector('#generateSrt');
 const syncProgress = document.querySelector('#syncProgress');
 const syncLabel = document.querySelector('#syncLabel');
 let outputHandle = null;
+const defaultOutputName = () => renderMode.value === 'proxy' ? 'music-video-proxy.mp4' : 'music-video.mp4';
+renderMode.onchange = () => {
+  outputHandle = null;
+  outputName.textContent = defaultOutputName();
+};
 
 const setStatus = (message) => (status.textContent = message);
 const refreshNumbers = () => [...captions.children].forEach((row, index) => (row.querySelector('.number').textContent = index + 1));
@@ -198,7 +204,7 @@ const chooseOutput = async () => {
   }
   try {
     outputHandle = await window.showSaveFilePicker({
-      suggestedName: 'music-video.mp4',
+      suggestedName: defaultOutputName(),
       types: [{description: 'MP4 영상', accept: {'video/mp4': ['.mp4']}}],
     });
     outputName.textContent = outputHandle.name;
@@ -225,26 +231,31 @@ const waitForRender = async () => {
 
 renderButton.onclick = async () => {
   try {
-    if (!outputHandle && !(await chooseOutput())) return;
     renderButton.disabled = true;
+    renderMode.disabled = true;
+    document.querySelector('#chooseOutput').disabled = true;
+    const mode = renderMode.value;
+    if (!outputHandle && !(await chooseOutput())) return;
     await save();
     setStatus('렌더링 중입니다. 창을 닫지 마세요…');
-    const response = await fetch('/api/render', {method: 'POST'});
+    const response = await fetch(`/api/render?mode=${mode}`, {method: 'POST'});
     if (!response.ok) throw new Error(await response.text());
     await waitForRender();
     if (outputHandle) {
-      const videoResponse = await fetch(`/video?t=${Date.now()}`);
+      const videoResponse = await fetch(`/video?mode=${mode}&t=${Date.now()}`);
       if (!videoResponse.ok) throw new Error(await videoResponse.text());
       const writable = await outputHandle.createWritable();
       await writable.write(await videoResponse.blob());
       await writable.close();
     }
     setStatus(outputHandle ? `${outputHandle.name} 저장 완료.` : '렌더링 완료. 완성 영상을 열 수 있습니다.');
-    document.querySelector('#video').href = `/video?t=${Date.now()}`;
+    document.querySelector('#video').href = `/video?mode=${mode}&t=${Date.now()}`;
   } catch (error) {
     setStatus(error.message);
   } finally {
     renderButton.disabled = false;
+    renderMode.disabled = false;
+    document.querySelector('#chooseOutput').disabled = false;
   }
 };
 
