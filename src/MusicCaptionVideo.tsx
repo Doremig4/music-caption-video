@@ -11,9 +11,9 @@ import {
 } from 'remotion';
 import {getCaptionScroll} from './caption-motion';
 
-export type MusicCaptionProps = {captions: Caption[]; title: string; artist: string};
+export type MusicCaptionProps = {captions: Caption[]; title: string; artist: string; backgroundOpacity?: number};
 
-export const MusicCaptionVideo = ({captions, title, artist}: MusicCaptionProps) => {
+export const MusicCaptionVideo = ({captions, title, artist, backgroundOpacity = 0.42}: MusicCaptionProps) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
   const timeMs = (frame / fps) * 1000;
@@ -27,7 +27,7 @@ export const MusicCaptionVideo = ({captions, title, artist}: MusicCaptionProps) 
           height: '100%',
           objectFit: 'cover',
           filter: 'blur(30px)',
-          opacity: 0.42,
+          opacity: backgroundOpacity,
           scale: interpolate(frame, [0, durationInFrames], [1.12, 1.18], {
             extrapolateLeft: 'clamp',
             extrapolateRight: 'clamp',

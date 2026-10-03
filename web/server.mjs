@@ -182,9 +182,13 @@ const server = createServer(async (request, response) => {
       for await (const chunk of request) chunks.push(chunk);
       const meta = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       if (!meta.title?.trim() || !meta.artist?.trim()) throw new Error('곡 제목과 아티스트를 입력하세요.');
+      const backgroundOpacity = meta.backgroundOpacity ?? 0.42;
+      if (!Number.isFinite(backgroundOpacity) || backgroundOpacity < 0 || backgroundOpacity > 1) {
+        throw new Error('배경 불투명도는 0부터 1 사이의 값이어야 합니다.');
+      }
       const target = join(publicDir, 'meta.json');
       const temp = `${target}.upload`;
-      await import('node:fs/promises').then(({writeFile}) => writeFile(temp, JSON.stringify({title: meta.title.trim(), artist: meta.artist.trim()}, null, 2)));
+      await import('node:fs/promises').then(({writeFile}) => writeFile(temp, JSON.stringify({title: meta.title.trim(), artist: meta.artist.trim(), backgroundOpacity}, null, 2)));
       await rename(temp, target);
       return send(response, 200, '곡 정보를 저장했습니다.');
     }

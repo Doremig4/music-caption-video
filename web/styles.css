@@ -10,6 +10,10 @@ p {margin: 0; color: #9ca8bd}
 section {background: #131a2c; border: 1px solid #26314a; border-radius: 16px; padding: 20px; margin-bottom: 18px}
 .media {display: grid; grid-template-columns: 1fr 1fr; gap: 16px}
 .media img {width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; grid-column: 1/-1}
+.background-settings {grid-column: 1/-1; display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center}
+.background-settings label, .background-settings .hint {grid-column: 1/-1}
+.background-settings label {display: block}
+.background-settings input {padding: 0}
 audio {display: none}
 .timeline {grid-column: 1/-1; display: grid; grid-template-columns: auto 1fr 130px; gap: 12px; align-items: center}
 .timeline input {padding: 0}

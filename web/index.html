@@ -14,6 +14,12 @@
         <label>아티스트<input id="artist" type="text" /></label>
         <label>음악<input id="music" type="file" accept="audio/*" /></label>
         <label>배경 이미지<input id="cover" type="file" accept="image/*" /></label>
+        <div class="background-settings">
+          <label for="backgroundTransparency">배경 투명도 · <output id="backgroundTransparencyDisplay">58%</output></label>
+          <input id="backgroundTransparency" type="range" min="0" max="100" step="1" value="58" aria-describedby="backgroundHint" />
+          <button id="resetBackground" type="button">기본값으로</button>
+          <p id="backgroundHint" class="hint">높을수록 뒤의 배경 이미지가 옅어집니다. 기본값은 58%이며, 앨범 표지와 자막에는 적용되지 않습니다.</p>
+        </div>
         <img id="coverPreview" src="/media/cover" alt="배경 이미지 미리보기" />
         <audio id="audio" src="/media/music" preload="metadata"></audio>
         <div class="timeline">

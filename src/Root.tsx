@@ -59,7 +59,7 @@ export const Root = () => (
     height={1080}
     fps={FPS}
     durationInFrames={FPS}
-    defaultProps={{captions: [], title: '곡 제목', artist: '아티스트'}}
+    defaultProps={{captions: [], title: '곡 제목', artist: '아티스트', backgroundOpacity: 0.42}}
     calculateMetadata={calculateMetadata}
   />
 );

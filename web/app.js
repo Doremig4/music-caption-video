@@ -4,6 +4,16 @@ const template = document.querySelector('#rowTemplate');
 const status = document.querySelector('#status');
 const title = document.querySelector('#title');
 const artist = document.querySelector('#artist');
+const backgroundTransparency = document.querySelector('#backgroundTransparency');
+const backgroundTransparencyDisplay = document.querySelector('#backgroundTransparencyDisplay');
+const updateBackgroundTransparency = () => {
+  backgroundTransparencyDisplay.textContent = `${backgroundTransparency.value}%`;
+};
+backgroundTransparency.oninput = updateBackgroundTransparency;
+document.querySelector('#resetBackground').onclick = () => {
+  backgroundTransparency.value = 58;
+  updateBackgroundTransparency();
+};
 const scrubber = document.querySelector('#scrubber');
 const timeDisplay = document.querySelector('#timeDisplay');
 const play = document.querySelector('#play');
@@ -99,7 +109,7 @@ const serialize = () => {
 const save = async () => {
   const [captionResponse, metaResponse] = await Promise.all([
     fetch('/api/captions', {method: 'PUT', body: serialize()}),
-    fetch('/api/meta', {method: 'PUT', headers: {'content-type': 'application/json'}, body: JSON.stringify({title: title.value.trim(), artist: artist.value.trim()})}),
+    fetch('/api/meta', {method: 'PUT', headers: {'content-type': 'application/json'}, body: JSON.stringify({title: title.value.trim(), artist: artist.value.trim(), backgroundOpacity: Number((1 - Number(backgroundTransparency.value) / 100).toFixed(2))})}),
   ]);
   if (!captionResponse.ok) throw new Error(await captionResponse.text());
   if (!metaResponse.ok) throw new Error(await metaResponse.text());
@@ -260,4 +270,9 @@ renderButton.onclick = async () => {
 };
 
 fetch('/api/captions').then((response) => response.text()).then((text) => parseSrt(text).forEach(addRow)).catch(() => addRow());
-fetch('/api/meta').then((response) => response.json()).then((meta) => { title.value = meta.title; artist.value = meta.artist; });
+fetch('/api/meta').then((response) => response.json()).then((meta) => {
+  title.value = meta.title;
+  artist.value = meta.artist;
+  backgroundTransparency.value = Math.round((1 - (meta.backgroundOpacity ?? 0.42)) * 100);
+  updateBackgroundTransparency();
+});
