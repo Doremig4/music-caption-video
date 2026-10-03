@@ -9,7 +9,20 @@ import ts from 'typescript';
 const motionSource = ts.transpile(readFileSync(new URL('../src/caption-motion.ts', import.meta.url), 'utf8'), {module: ts.ModuleKind.CommonJS});
 const motionExports = {};
 runInNewContext(motionSource, {exports: motionExports});
-const {getCaptionScroll} = motionExports;
+const {getCaptionScroll, getVisibleCaptionRange} = motionExports;
+
+test('visible caption range keeps all rows that can reach the viewport, including blurred edges', () => {
+  for (const scroll of [0, 0.1, 10, 10.5, 10.99, 49]) {
+    const {start, end} = getVisibleCaptionRange(50, scroll);
+    assert.ok(start >= 0 && end <= 50 && end - start <= 15);
+    for (let index = 0; index < 50; index++) {
+      const top = 540 + (index - scroll) * 108;
+      if (top + 108 + 27 >= 0 && top - 27 <= 1080) {
+        assert.ok(index >= start && index < end, `missing visible row ${index} at ${scroll}`);
+      }
+    }
+  }
+});
 
 test('caption scroll stays still initially and eases to the next row', () => {
   const cues = [{startMs: 1000}, {startMs: 2000}];
