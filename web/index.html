@@ -53,6 +53,13 @@
             <option value="proxy">프록시 · 960×540 (빠른 확인용)</option>
           </select>
         </label>
+        <label>인코딩 방식
+          <select id="encoding" aria-describedby="encodingHint">
+            <option value="standard">표준 · 기존 화질과 용량</option>
+            <option value="accelerated">하드웨어 가속 · 속도 비교용</option>
+          </select>
+        </label>
+        <p id="encodingHint" class="hint">하드웨어 가속은 기기에 따라 더 느릴 수 있으며, 화질과 파일 크기가 달라집니다. 지원되지 않는 기기는 소프트웨어 인코딩을 사용합니다.</p>
         <button id="chooseOutput" type="button">출력 위치 선택</button>
         <span id="outputName">music-video.mp4</span>
         <button id="render" class="primary" type="button">영상 렌더하기</button>

@@ -12,13 +12,18 @@ const webDir = join(root, 'web');
 const files = {music: 'music.mp3', cover: 'cover.jpg', captions: 'lyrics.srt', lyrics: 'lyrics.txt'};
 const limits = {music: 500 * 1024 * 1024, cover: 25 * 1024 * 1024, captions: 2 * 1024 * 1024, lyrics: 2 * 1024 * 1024};
 const renderModes = {
-  full: {script: 'render', filename: 'music-video.mp4'},
-  proxy: {script: 'render:proxy', filename: 'music-video-proxy.mp4'},
+  full: {script: 'render', acceleratedScript: 'render:accelerated', filename: 'music-video.mp4'},
+  proxy: {script: 'render:proxy', acceleratedScript: 'render:proxy:accelerated', filename: 'music-video-proxy.mp4'},
 };
 const getRenderMode = (url) => {
   const mode = url.searchParams.get('mode') ?? 'full';
   if (!Object.hasOwn(renderModes, mode)) throw new Error('지원하지 않는 출력 모드입니다.');
   return mode;
+};
+const getEncoding = (url) => {
+  const encoding = url.searchParams.get('encoding') ?? 'standard';
+  if (!['standard', 'accelerated'].includes(encoding)) throw new Error('지원하지 않는 인코딩 방식입니다.');
+  return encoding;
 };
 let renderState = {status: 'idle', phase: '', percent: 0, error: ''};
 // ponytail: local single-user UI; use per-job state if concurrent users are added.
@@ -62,9 +67,10 @@ const saveBody = async (request, target, limit) => {
   await rename(temp, target);
 };
 
-const startRender = (mode) => {
-  renderState = {status: 'running', phase: '렌더링 준비 중', percent: 0, error: '', mode};
-  const child = spawn('npm', ['run', renderModes[mode].script], {cwd: root});
+const startRender = (mode, encoding) => {
+  renderState = {status: 'running', phase: '렌더링 준비 중', percent: 0, error: '', mode, encoding};
+  const script = encoding === 'accelerated' ? renderModes[mode].acceleratedScript : renderModes[mode].script;
+  const child = spawn('npm', ['run', script], {cwd: root});
   let log = '';
   const readProgress = (chunk) => {
     log = (log + chunk).slice(-4000);
@@ -87,7 +93,7 @@ const startRender = (mode) => {
       renderState = {status: 'error', phase: '', percent: renderState.percent, error: log || `렌더러가 ${code} 코드로 종료됐습니다.`};
       return;
     }
-    renderState = {status: 'done', phase: '완료', percent: 100, error: '', mode};
+    renderState = {status: 'done', phase: '완료', percent: 100, error: '', mode, encoding};
     spawn('osascript', ['-e', 'display notification "영상 렌더링이 완료됐습니다." with title "음악 자막 영상"']);
   });
 };
@@ -195,7 +201,7 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && url.pathname === '/api/render') {
       if (renderState.status === 'running') return send(response, 409, '이미 렌더링 중입니다.');
-      startRender(getRenderMode(url));
+      startRender(getRenderMode(url), getEncoding(url));
       return send(response, 202, '렌더링을 시작했습니다.');
     }
 

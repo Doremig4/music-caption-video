@@ -21,6 +21,7 @@ const volume = document.querySelector('#volume');
 const volumeDisplay = document.querySelector('#volumeDisplay');
 const renderButton = document.querySelector('#render');
 const renderMode = document.querySelector('#renderMode');
+const encoding = document.querySelector('#encoding');
 const renderProgress = document.querySelector('#renderProgress');
 const renderLabel = document.querySelector('#renderLabel');
 const outputName = document.querySelector('#outputName');
@@ -243,12 +244,13 @@ renderButton.onclick = async () => {
   try {
     renderButton.disabled = true;
     renderMode.disabled = true;
+    encoding.disabled = true;
     document.querySelector('#chooseOutput').disabled = true;
     const mode = renderMode.value;
     if (!outputHandle && !(await chooseOutput())) return;
     await save();
     setStatus('렌더링 중입니다. 창을 닫지 마세요…');
-    const response = await fetch(`/api/render?mode=${mode}`, {method: 'POST'});
+    const response = await fetch(`/api/render?mode=${mode}&encoding=${encoding.value}`, {method: 'POST'});
     if (!response.ok) throw new Error(await response.text());
     await waitForRender();
     if (outputHandle) {
@@ -265,6 +267,7 @@ renderButton.onclick = async () => {
   } finally {
     renderButton.disabled = false;
     renderMode.disabled = false;
+    encoding.disabled = false;
     document.querySelector('#chooseOutput').disabled = false;
   }
 };

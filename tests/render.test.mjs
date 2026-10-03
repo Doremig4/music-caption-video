@@ -98,7 +98,18 @@ test('default mode preserves full output and invalid modes never spawn a rendere
   const {request, calls} = createHarness();
   assert.equal((await request('POST', '/api/render?mode=invalid')).status, 400);
   assert.equal((await request('GET', '/video?mode=__proto__')).status, 400);
+  assert.equal((await request('POST', '/api/render?encoding=invalid')).status, 400);
   assert.equal(calls.length, 0);
   assert.equal((await request('POST', '/api/render')).status, 202);
   assert.equal(calls[0].args[1], 'render');
+});
+
+test('hardware encoding uses the matching full or proxy script and reports the selected encoding', async () => {
+  for (const mode of ['full', 'proxy']) {
+    const {request, calls, children} = createHarness();
+    assert.equal((await request('POST', `/api/render?mode=${mode}&encoding=accelerated`)).status, 202);
+    assert.equal(calls[0].args[1], mode === 'proxy' ? 'render:proxy:accelerated' : 'render:accelerated');
+    children[0].emit('close', 0);
+    assert.equal(JSON.parse((await request('GET', '/api/render-status')).body).encoding, 'accelerated');
+  }
 });

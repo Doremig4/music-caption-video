@@ -38,6 +38,7 @@ button:hover, a:hover {background: #2d3955}
 .danger {color: #ff9d9d}
 .primary {background: #5b6cff; border-color: #7d8aff; font-weight: 700}
 #outputName {color: #b8c2d5; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap}
+#encodingHint {width: 100%; margin: 0}
 #renderProgress, #syncProgress {width: 100%; height: 14px; accent-color: #5b6cff}
 #renderLabel, #syncLabel {display: block; width: 100%; color: #b8c2d5; font-variant-numeric: tabular-nums}
 #status {width: 100%; min-height: 24px; color: #b8c2d5}
