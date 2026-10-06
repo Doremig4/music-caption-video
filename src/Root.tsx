@@ -3,6 +3,7 @@ import {Composition, staticFile} from 'remotion';
 import {parseSrt} from '@remotion/captions';
 import {ALL_FORMATS, Input, UrlSource} from 'mediabunny';
 import {MusicCaptionVideo, type MusicCaptionProps} from './MusicCaptionVideo';
+import {prepareBackground} from './prepare-background';
 
 const FPS = 60;
 
@@ -15,7 +16,7 @@ const loadInput = async (path: string, label: string) => {
 };
 
 const calculateMetadata: CalculateMetadataFunction<MusicCaptionProps> = async () => {
-  const [srtResponse, metaResponse] = await Promise.all([
+  const [srtResponse, metaResponse, coverResponse] = await Promise.all([
     loadInput('lyrics.srt', '자막'),
     loadInput('meta.json', '곡 정보'),
     loadInput('cover.jpg', '배경 이미지'),
@@ -45,7 +46,7 @@ const calculateMetadata: CalculateMetadataFunction<MusicCaptionProps> = async ()
 
   return {
     durationInFrames: Math.ceil(durationInSeconds * FPS),
-    props: {captions, ...(await metaResponse.json())},
+    props: {captions, ...(await metaResponse.json()), backgroundImage: await prepareBackground(coverResponse)},
     defaultOutName: 'music-video.mp4',
     defaultCodec: 'h264',
   };

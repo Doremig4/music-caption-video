@@ -9,7 +9,20 @@ import ts from 'typescript';
 const motionSource = ts.transpile(readFileSync(new URL('../src/caption-motion.ts', import.meta.url), 'utf8'), {module: ts.ModuleKind.CommonJS});
 const motionExports = {};
 runInNewContext(motionSource, {exports: motionExports});
-const {getCaptionScroll} = motionExports;
+const {getCaptionScroll, getVisibleCaptionRange} = motionExports;
+
+test('visible caption range keeps all rows that can reach the viewport, including blurred edges', () => {
+  for (const scroll of [0, 0.1, 10, 10.5, 10.99, 49]) {
+    const {start, end} = getVisibleCaptionRange(50, scroll);
+    assert.ok(start >= 0 && end <= 50 && end - start <= 15);
+    for (let index = 0; index < 50; index++) {
+      const top = 540 + (index - scroll) * 108;
+      if (top + 108 + 27 >= 0 && top - 27 <= 1080) {
+        assert.ok(index >= start && index < end, `missing visible row ${index} at ${scroll}`);
+      }
+    }
+  }
+});
 
 test('caption scroll stays still initially and eases to the next row', () => {
   const cues = [{startMs: 1000}, {startMs: 2000}];
@@ -85,7 +98,18 @@ test('default mode preserves full output and invalid modes never spawn a rendere
   const {request, calls} = createHarness();
   assert.equal((await request('POST', '/api/render?mode=invalid')).status, 400);
   assert.equal((await request('GET', '/video?mode=__proto__')).status, 400);
+  assert.equal((await request('POST', '/api/render?encoding=invalid')).status, 400);
   assert.equal(calls.length, 0);
   assert.equal((await request('POST', '/api/render')).status, 202);
   assert.equal(calls[0].args[1], 'render');
+});
+
+test('hardware encoding uses the matching full or proxy script and reports the selected encoding', async () => {
+  for (const mode of ['full', 'proxy']) {
+    const {request, calls, children} = createHarness();
+    assert.equal((await request('POST', `/api/render?mode=${mode}&encoding=accelerated`)).status, 202);
+    assert.equal(calls[0].args[1], mode === 'proxy' ? 'render:proxy:accelerated' : 'render:accelerated');
+    children[0].emit('close', 0);
+    assert.equal(JSON.parse((await request('GET', '/api/render-status')).body).encoding, 'accelerated');
+  }
 });

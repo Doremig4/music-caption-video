@@ -9,24 +9,25 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
-import {getCaptionScroll} from './caption-motion';
+import {getCaptionScroll, getVisibleCaptionRange} from './caption-motion';
 
-export type MusicCaptionProps = {captions: Caption[]; title: string; artist: string; backgroundOpacity?: number};
+export type MusicCaptionProps = {captions: Caption[]; title: string; artist: string; backgroundOpacity?: number; backgroundImage?: string};
 
-export const MusicCaptionVideo = ({captions, title, artist, backgroundOpacity = 0.42}: MusicCaptionProps) => {
+export const MusicCaptionVideo = ({captions, title, artist, backgroundOpacity = 0.42, backgroundImage}: MusicCaptionProps) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
   const timeMs = (frame / fps) * 1000;
   const scrollPosition = getCaptionScroll(captions, timeMs);
+  const visible = getVisibleCaptionRange(captions.length, scrollPosition);
 
   return (
     <AbsoluteFill style={{backgroundColor: '#090909', overflow: 'hidden'}}>
       <Img
-        src={staticFile('cover.jpg')}
+        src={backgroundImage ?? staticFile('cover.jpg')}
         style={{
           height: '100%',
           objectFit: 'cover',
-          filter: 'blur(30px)',
+          filter: backgroundImage ? undefined : 'blur(30px)',
           opacity: backgroundOpacity,
           scale: interpolate(frame, [0, durationInFrames], [1.12, 1.18], {
             extrapolateLeft: 'clamp',
@@ -46,7 +47,8 @@ export const MusicCaptionVideo = ({captions, title, artist, backgroundOpacity = 
       </AbsoluteFill>
       <AbsoluteFill style={{left: '52%', width: '43%', backgroundColor: 'rgba(12, 12, 14, 0.55)', overflow: 'hidden'}}>
         <div style={{position: 'absolute', left: 0, right: 0, top: 540, height: 108, backgroundColor: 'rgba(5, 5, 8, 0.68)'}} />
-        {captions.map((caption, index) => {
+        {captions.slice(visible.start, visible.end).map((caption, offset) => {
+          const index = visible.start + offset;
           const rowY = (index - scrollPosition) * 108;
           const distance = Math.abs(rowY / 108);
           const focus = Math.max(0, 1 - distance);

@@ -9,6 +9,8 @@
     "preview": "remotion studio --no-open",
     "render": "remotion render MusicCaption outputs/music-video.mp4 --codec=h264 --audio-codec=aac",
     "render:proxy": "remotion render MusicCaption outputs/music-video-proxy.mp4 --codec=h264 --audio-codec=aac --scale=0.5 --crf=28 --x264-preset=veryfast --audio-bitrate=128k",
+    "render:accelerated": "remotion render MusicCaption outputs/music-video.mp4 --codec=h264 --audio-codec=aac --hardware-acceleration=if-possible --video-bitrate=8M",
+    "render:proxy:accelerated": "remotion render MusicCaption outputs/music-video-proxy.mp4 --codec=h264 --audio-codec=aac --scale=0.5 --hardware-acceleration=if-possible --video-bitrate=2M --audio-bitrate=128k",
     "check": "tsc --noEmit",
     "test": "node --test"
   },

@@ -1,21 +1,22 @@
 # 자막 영상 생성기
 
-`public/music.mp3`, `public/lyrics.srt`, `public/cover.jpg`를 교체한 뒤 실행.
+음악과 가사, 커버 이미지로 자막 영상을 만듭니다. 웹에서 파일을 올리고 가사 타이밍을 수정한 뒤 MP4로 저장할 수 있습니다.
 
 ```bash
+npm install
 npm run web
-npm run preview
-npm run render
-npm run render:proxy
 ```
 
-TXT 가사 자동 싱크는 최초 한 번 `npm run setup-whisper`를 실행한 뒤 웹에서 사용합니다.
+[http://127.0.0.1:4173](http://127.0.0.1:4173)에 접속해 시작하세요. TXT 가사를 자동으로 음악에 맞추려면 먼저 `npm run setup-whisper`를 한 번 실행하세요. Python 3가 필요합니다.
 
-`npm run web` 실행 후 `http://127.0.0.1:4173`에서 파일 업로드, SRT 편집, 렌더를 한 번에 할 수 있습니다.
-완성 파일은 `outputs/music-video.mp4`에 저장됩니다. SRT는 UTF-8이어야 하며 마지막 자막은 음악보다 먼저 끝나야 합니다.
+완성 영상은 `outputs/music-video.mp4`에 1920×1080, 60fps로 저장됩니다. 빠르게 확인하려면 웹에서 **프록시**를 선택하세요. 960×540 영상이 `outputs/music-video-proxy.mp4`에 저장됩니다. 배경 투명도와 인코딩 방식도 웹에서 조절할 수 있습니다.
 
-웹의 **출력 모드**에서 최종 영상(1920×1080) 또는 프록시(960×540)를 선택할 수 있습니다. 프록시는 자막 타이밍과 60fps를 유지하면서 해상도와 인코딩 품질을 낮춘 확인용 MP4이며, `outputs/music-video-proxy.mp4`에 별도로 저장됩니다. 터미널에서는 `npm run render:proxy`로 출력합니다.
+터미널에서 작업하려면 `public/music.mp3`, `public/lyrics.srt`, `public/cover.jpg`를 교체한 뒤 아래 명령을 사용하세요.
 
-자막은 모든 줄이 일정한 간격으로 함께 이동하며, 0.5초 동안 부드럽게 가속·감속합니다. 짧은 간격으로 자막이 이어져도 진행 중인 이동이 끊기지 않습니다. 현재 가사에서 위아래 두 줄까지는 선명하게 유지하고, 세 번째 줄부터 멀어질수록 점점 강하게 블러 처리합니다.
+```bash
+npm run preview       # 미리보기
+npm run render        # 최종 영상 저장
+npm run render:proxy  # 확인용 영상 저장
+```
 
-웹의 **배경 투명도**에서 뒤의 배경 이미지를 0~100%로 조절할 수 있습니다. 기본값 58%는 기존 배경과 동일하며, **기본값으로** 버튼으로 복원합니다. SRT 저장 또는 렌더 시 설정이 저장되어 최종 영상과 프록시 모두에 적용됩니다.
+SRT는 UTF-8로 저장하고, 마지막 자막이 음악보다 늦게 끝나지 않도록 해주세요. 렌더링 성능과 하드웨어 인코딩에 관한 내용은 [성능 비교 문서](docs/render-performance.md)를 참고하세요.
